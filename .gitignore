@@ -1,0 +1,40 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+~$*
+~*.docx
+~*.xlsx
+*.tmp
+*.bak
+
+# Node
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+
+# WA Bridge
+.wwebjs_auth/
+.wwebjs_cache/
+-w/
+
+# Java / Maven (interview-scheduler)
+target/
+*.class
+*.jar
+*.war
+.mvn/
+!/.mvn/wrapper/maven-wrapper.jar
+data/
+*.db
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

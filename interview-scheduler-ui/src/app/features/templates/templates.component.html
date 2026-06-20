@@ -1,0 +1,113 @@
+﻿<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>Templates</h1>
+      <p class="page-sub">Reusable WhatsApp message bodies with dynamic placeholders like <span class="code">{{ '{{column_1}}' }}</span> or custom <span class="code">{{ '{{panel_name}}' }}</span>.</p>
+    </div>
+    <button class="btn btn-primary" (click)="newTemplate()">
+      <span class="material-symbols-rounded">add</span> New template
+    </button>
+  </header>
+  <div class="layout">
+    <aside class="card list">
+      <div class="card-header">
+        <div class="card-title">Saved <span class="text-dim mono" style="font-weight:400; font-size:12px;">&middot; {{ templates.length }}</span></div>
+      </div>
+      <div *ngIf="templates.length; else noneTpl">
+        <button class="item"
+                *ngFor="let t of templates"
+                [class.item-active]="selected?.id === t.id"
+                (click)="select(t)">
+          <span class="item-icon material-symbols-rounded">description</span>
+          <div class="item-meta">
+            <div class="item-name">{{ t.name }}</div>
+            <div class="item-excerpt text-dim">{{ t.body.slice(0, 60) }}{{ t.body.length > 60 ? '...' : '' }}</div>
+          </div>
+          <app-status-chip [variant]="t.active ? 'success' : 'muted'">
+            {{ t.active ? 'Active' : 'Off' }}
+          </app-status-chip>
+          <span class="item-del material-symbols-rounded" (click)="remove(t, $event)" title="Delete">delete</span>
+        </button>
+      </div>
+      <ng-template #noneTpl>
+        <div class="empty">
+          <div class="empty-icon material-symbols-rounded">description</div>
+          <h3>No templates</h3>
+          <p>Create your first template to get started.</p>
+        </div>
+      </ng-template>
+    </aside>
+    <section class="editor-area">
+      <div class="card" *ngIf="editing || selected; else pickPrompt">
+        <div class="card-header">
+          <div>
+            <div class="card-title">{{ editing ? (draft.name || 'Untitled') : selected?.name }}</div>
+            <div class="text-dim" style="font-size:12px; margin-top:2px;">
+              {{ editing && !selected ? 'New template' : (editing ? 'Editing' : 'Viewing') }}
+            </div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <ng-container *ngIf="!editing && selected">
+              <button class="btn" (click)="edit()">
+                <span class="material-symbols-rounded">edit</span> Edit
+              </button>
+            </ng-container>
+            <ng-container *ngIf="editing">
+              <button class="btn" (click)="cancel()" [disabled]="saving">Cancel</button>
+              <button class="btn btn-primary" (click)="save()" [disabled]="saving">
+                <span class="material-symbols-rounded">{{ saving ? 'progress_activity' : 'save' }}</span>
+                {{ saving ? 'Saving...' : 'Save' }}
+              </button>
+            </ng-container>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form" *ngIf="editing">
+            <div class="field">
+              <label class="label">Template name</label>
+              <input class="input" type="text" [(ngModel)]="draft.name" placeholder="e.g. tvm_interview_invite" />
+            </div>
+            <label class="check-row">
+              <input type="checkbox" [(ngModel)]="draft.active" />
+              <span>Active <span class="text-dim">&mdash; used by default for new dispatches</span></span>
+            </label>
+            <div class="field">
+              <label class="label">Message body</label>
+              <textarea class="textarea" rows="14" [(ngModel)]="draft.body"
+                placeholder="Hello {{ '{{column_1}}' }}, your interview for {{ '{{column_2}}' }} is on {{ '{{column_3}}' }} at {{ '{{column_4}}' }}."></textarea>
+            </div>
+            <div class="ph-strip">
+              <span class="ph-label">Quick insert:</span>
+              <span class="code ph-chip" *ngFor="let p of ['{{column_1}}','{{column_2}}','{{column_3}}','{{column_4}}','{{column_5}}']">{{ p }}</span>
+            </div>
+          </div>
+          <pre class="static-body" *ngIf="!editing && selected">{{ selected.body }}</pre>
+        </div>
+      </div>
+      <ng-template #pickPrompt>
+        <div class="card">
+          <div class="empty">
+            <div class="empty-icon material-symbols-rounded">touch_app</div>
+            <h3>Select a template</h3>
+            <p>Pick from the list, or create a new one.</p>
+          </div>
+        </div>
+      </ng-template>
+      <div class="card" *ngIf="editing">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Live preview</div>
+            <div class="text-dim" style="font-size:12px; margin-top:2px;">Substituted with sample data</div>
+          </div>
+          <span class="dot dot-success">WhatsApp</span>
+        </div>
+        <div class="card-body wa-stage">
+          <div class="wa-bubble">
+            <pre>{{ renderedPreview() }}</pre>
+            <span class="wa-meta">11:42 &check;&check;</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

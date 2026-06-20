@@ -1,0 +1,45 @@
+﻿<div class="app-shell">
+  <mat-progress-bar
+    *ngIf="loading.active()"
+    mode="indeterminate"
+    class="!fixed top-0 left-0 right-0 !h-[2px] z-50">
+  </mat-progress-bar>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <span class="material-symbols-rounded">forum</span>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">Interview Scheduler</div>
+        <div class="brand-sub">TVM Infotech</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a *ngFor="let item of nav; trackBy: trackByPath"
+         [routerLink]="item.path"
+         routerLinkActive="nav-active"
+         class="nav-item">
+        <span class="material-symbols-rounded nav-icon">{{ item.icon }}</span>
+        <span>{{ item.label }}</span>
+      </a>
+    </nav>
+    <div class="sidebar-foot">
+      <a routerLink="/whatsapp" class="status-card" [attr.data-variant]="statusVariant">
+        <span class="status-dot"></span>
+        <div class="status-meta">
+          <div class="status-label">WhatsApp</div>
+          <div class="status-value">{{ statusLabel }}</div>
+        </div>
+        <span class="material-symbols-rounded status-chev">chevron_right</span>
+      </a>
+      <div class="sidebar-version">v1.3 &middot; Local bridge</div>
+    </div>
+  </aside>
+  <!-- Main column -->
+  <main class="main">
+    <div class="main-inner">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>

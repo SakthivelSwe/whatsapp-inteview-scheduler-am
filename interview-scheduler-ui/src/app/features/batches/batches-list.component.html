@@ -1,0 +1,57 @@
+﻿<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>Batches</h1>
+      <p class="page-sub">Every upload becomes a batch you can dispatch, monitor, pause and retry.</p>
+    </div>
+    <a class="btn btn-primary" routerLink="/upload">
+      <span class="material-symbols-rounded">add</span> New batch
+    </a>
+  </header>
+  <section class="card" *ngIf="batches.length; else emptyTpl">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:42%">File</th>
+          <th>Candidates</th>
+          <th>Status</th>
+          <th>Uploaded</th>
+          <th style="width:48px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let b of batches" (click)="open(b)" class="row-clickable">
+          <td>
+            <div class="file-cell">
+              <span class="file-icon material-symbols-rounded">description</span>
+              <div>
+                <div class="file-name">{{ b.fileName }}</div>
+                <div class="mono text-dim" style="font-size:11px;">{{ b.id.slice(0,8) }}</div>
+              </div>
+            </div>
+          </td>
+          <td class="mono">{{ b.totalCandidates }}</td>
+          <td><app-status-chip [variant]="chipVariant(b.status)">{{ b.status.toLowerCase() }}</app-status-chip></td>
+          <td class="text-dim mono" style="font-size:12px;">{{ b.createdAt | date:'MMM d, HH:mm' }}</td>
+          <td>
+            <button class="btn btn-icon btn-ghost" (click)="remove(b, $event)" title="Remove from local list">
+              <span class="material-symbols-rounded" style="font-size:16px;">close</span>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+  <ng-template #emptyTpl>
+    <div class="card">
+      <div class="empty">
+        <div class="empty-icon material-symbols-rounded">inventory_2</div>
+        <h3>No batches tracked</h3>
+        <p>Upload your first candidate Excel to get started.</p>
+        <a class="btn btn-primary" routerLink="/upload" style="margin-top:14px;">
+          <span class="material-symbols-rounded">upload_file</span> Upload candidates
+        </a>
+      </div>
+    </div>
+  </ng-template>
+</div>

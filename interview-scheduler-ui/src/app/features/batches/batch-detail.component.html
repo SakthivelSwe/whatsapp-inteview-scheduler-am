@@ -1,0 +1,194 @@
+﻿<div class="page">
+  <a class="back-link" routerLink="/batches">
+    <span class="material-symbols-rounded">arrow_back</span> All batches
+  </a>
+  <ng-container *ngIf="loading; else loaded">
+    <div class="card"><div class="card-body">
+      <div class="skel" style="height:20px; width:40%; margin-bottom:10px;"></div>
+      <div class="skel" style="height:14px; width:25%;"></div>
+    </div></div>
+    <div class="kpi-row">
+      <div class="skel" style="height:88px;"></div>
+      <div class="skel" style="height:88px;"></div>
+      <div class="skel" style="height:88px;"></div>
+      <div class="skel" style="height:88px;"></div>
+      <div class="skel" style="height:88px;"></div>
+    </div>
+  </ng-container>
+  <ng-template #loaded>
+    <!-- Hero card -->
+    <header class="card hero">
+      <div class="hero-main">
+        <div class="hero-eyebrow">Batch</div>
+        <div class="hero-title">
+          <span class="mono hero-id">{{ batchId }}</span>
+          <button class="btn btn-icon btn-ghost btn-sm" (click)="copyId()" title="Copy ID">
+            <span class="material-symbols-rounded" style="font-size:14px;">content_copy</span>
+          </button>
+        </div>
+        <div style="margin-top:10px;" *ngIf="status">
+          <app-status-chip [variant]="statusVariant(status.status)">{{ status.status.toLowerCase() }}</app-status-chip>
+        </div>
+      </div>
+      <div class="hero-actions" *ngIf="status">
+        <button class="btn" *ngIf="status.status === 'SENDING'" (click)="pause()" [disabled]="pausing">
+          <span class="material-symbols-rounded">{{ pausing ? 'progress_activity' : 'pause' }}</span>
+          {{ pausing ? 'Pausing...' : 'Pause' }}
+        </button>
+        <button class="btn btn-primary" *ngIf="status.status === 'PAUSED'" (click)="resume()" [disabled]="resuming">
+          <span class="material-symbols-rounded">{{ resuming ? 'progress_activity' : 'play_arrow' }}</span>
+          {{ resuming ? 'Resuming...' : 'Resume (' + status.pending + ')' }}
+        </button>
+        <button class="btn" (click)="retryFailed()" [disabled]="retrying || sending || pausing || resuming || status.failed === 0">
+          <span class="material-symbols-rounded">{{ retrying ? 'progress_activity' : 'refresh' }}</span>
+          Retry ({{ status.failed }})
+        </button>
+        <button class="btn btn-primary"
+                *ngIf="status.status !== 'SENDING' && status.status !== 'PAUSED'"
+                (click)="sendAll()"
+                [disabled]="sending || retrying || status.pending === 0">
+          <span class="material-symbols-rounded">{{ sending ? 'progress_activity' : 'send' }}</span>
+          {{ sending ? 'Dispatching...' : 'Send all (' + status.pending + ')' }}
+        </button>
+      </div>
+    </header>
+    <!-- Progress -->
+    <div class="progress-block" *ngIf="status">
+      <div class="progress-track"><div class="progress-fill" [style.width.%]="progress()"></div></div>
+      <div class="progress-meta">
+        <span class="text-muted">{{ progress() }}% processed</span>
+        <span class="text-dim mono">{{ status.successfullySent + status.failed + status.invalid }} / {{ status.totalRecords }}</span>
+      </div>
+    </div>
+    <!-- KPIs -->
+    <section class="kpi-row" *ngIf="status">
+      <div class="kpi">
+        <div class="kpi-label">Total</div>
+        <div class="kpi-value-mono">{{ status.totalRecords }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Sent</div>
+        <div class="kpi-value-mono text-success">{{ status.successfullySent }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Failed</div>
+        <div class="kpi-value-mono" [style.color]="status.failed ? 'var(--color-danger)' : 'var(--color-fg-dim)'">{{ status.failed }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Invalid</div>
+        <div class="kpi-value-mono" [style.color]="status.invalid ? 'var(--color-warning)' : 'var(--color-fg-dim)'">{{ status.invalid }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Pending</div>
+        <div class="kpi-value-mono">{{ status.pending }}</div>
+      </div>
+    </section>
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab" [class.tab-active]="activeTab==='overview'"   (click)="setTab('overview')">Template</button>
+      <button class="tab" [class.tab-active]="activeTab==='candidates'" (click)="setTab('candidates')">
+        Candidates <span class="pill pill-no-dot" style="margin-left:4px;">{{ candidates.length }}</span>
+      </button>
+      <button class="tab" [class.tab-active]="activeTab==='failed'"     (click)="setTab('failed')">
+        Failed
+        <span class="pill pill-no-dot pill-danger" style="margin-left:4px;" *ngIf="status?.failed">{{ status?.failed }}</span>
+      </button>
+      <button class="tab" [class.tab-active]="activeTab==='logs'"       (click)="setTab('logs')">
+        Logs <span class="pill pill-no-dot" style="margin-left:4px;">{{ logs.length }}</span>
+      </button>
+    </div>
+    <!-- Template -->
+    <div class="card" *ngIf="activeTab==='overview'">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Message template</div>
+          <div class="text-dim" style="font-size:12px; margin-top:2px;">Placeholders are substituted per candidate at send time.</div>
+        </div>
+        <div *ngIf="templates.length">
+          <select class="select" style="width:220px;" [(ngModel)]="selectedTemplate" (change)="onTemplateChange()">
+            <option *ngFor="let t of templates" [value]="t.name">{{ t.name }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body">
+        <pre class="msg-preview">{{ previewBody || 'No template selected' }}</pre>
+      </div>
+    </div>
+    <!-- Candidates -->
+    <div class="card" *ngIf="activeTab==='candidates'">
+      <div *ngIf="candidates.length; else emptyCand">
+        <table class="data-table">
+          <thead><tr>
+            <th style="width:50px;">#</th><th>Name</th><th>Phone</th><th>Position</th><th>Schedule</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            <tr *ngFor="let c of candidates; trackBy: trackById">
+              <td class="text-dim mono">{{ c.rowNumber }}</td>
+              <td style="font-weight:500;">{{ c.candidateName }}</td>
+              <td class="mono">{{ c.phoneNumber }}</td>
+              <td>{{ c.jobPosition || '&mdash;' }}</td>
+              <td class="text-dim" style="font-size:12px;">
+                <ng-container *ngIf="c.interviewDate || c.interviewTime; else dash">
+                  {{ c.interviewDate }} &middot; {{ c.interviewTime }}
+                </ng-container>
+                <ng-template #dash>&mdash;</ng-template>
+              </td>
+              <td><app-status-chip [variant]="statusVariant(c.status)">{{ c.status.toLowerCase() }}</app-status-chip></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #emptyCand>
+        <div class="empty"><div class="empty-icon material-symbols-rounded">group_off</div><h3>No candidate rows</h3></div>
+      </ng-template>
+    </div>
+    <!-- Failed -->
+    <div class="card" *ngIf="activeTab==='failed'">
+      <div *ngIf="status?.failedRecords?.length; else emptyFailed">
+        <table class="data-table">
+          <thead><tr><th style="width:50px;">Row</th><th>Candidate</th><th>Phone</th><th>Error</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let f of status?.failedRecords; trackBy: trackByRow">
+              <td class="text-dim mono">{{ f.rowNumber }}</td>
+              <td style="font-weight:500;">{{ f.candidateName }}</td>
+              <td class="mono">{{ f.phoneNumber }}</td>
+              <td class="text-danger" style="font-size:12.5px;">{{ f.error }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #emptyFailed>
+        <div class="empty">
+          <div class="empty-icon material-symbols-rounded" style="color: var(--color-success);">check_circle</div>
+          <h3>All clear</h3>
+          <p>Every eligible message was delivered.</p>
+        </div>
+      </ng-template>
+    </div>
+    <!-- Logs -->
+    <div class="card" *ngIf="activeTab==='logs'">
+      <div class="card-body" *ngIf="logs.length; else emptyLogs" style="padding: 0;">
+        <div class="log" *ngFor="let l of logs; trackBy: trackById">
+          <div class="log-head">
+            <app-status-chip [variant]="statusVariant(l.status)">{{ l.status.toLowerCase() }}</app-status-chip>
+            <span class="mono">{{ l.whatsappNumber }}</span>
+            <span class="text-dim mono" style="font-size:11px;">{{ l.createdAt | date:'short' }}</span>
+            <span class="code" *ngIf="l.providerMessageId">{{ l.providerMessageId }}</span>
+          </div>
+          <pre class="log-body">{{ l.renderedMessage }}</pre>
+          <div class="log-error" *ngIf="l.errorMessage">
+            <span class="material-symbols-rounded" style="font-size:14px;">error</span>
+            {{ l.errorMessage }}
+          </div>
+        </div>
+      </div>
+      <ng-template #emptyLogs>
+        <div class="empty">
+          <div class="empty-icon material-symbols-rounded">history</div>
+          <h3>No logs yet</h3>
+          <p>Dispatch the batch to populate the audit log.</p>
+        </div>
+      </ng-template>
+    </div>
+  </ng-template>
+</div>

@@ -1,0 +1,107 @@
+﻿<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>WhatsApp connection</h1>
+      <p class="page-sub">Free local bridge dispatches messages through WhatsApp Web. Pair a dedicated sender phone &mdash; never your personal account.</p>
+    </div>
+    <div class="strip" *ngIf="status">
+      <span [class]="bigDotClass()"></span>
+      <span class="strip-text">{{ bigStatusLabel() }}</span>
+      <span class="text-dim mono" *ngIf="status?.info?.pushname as name">&middot; {{ name }}</span>
+    </div>
+  </header>
+  <div class="layout">
+    <section class="card qr-card" *ngIf="status?.provider === 'local'; else nonLocalTpl">
+      <div class="card-header">
+        <div>
+          <div class="card-title">QR pairing</div>
+          <div class="text-dim" style="font-size:12px; margin-top:2px;">Scan from the sender phone to link this bridge.</div>
+        </div>
+        <button class="btn btn-sm" (click)="resetQr()" [disabled]="resetting" *ngIf="!status?.ready">
+          <span class="material-symbols-rounded">{{ resetting ? 'progress_activity' : 'refresh' }}</span>
+          {{ resetting ? 'Resetting' : 'Reset QR' }}
+        </button>
+      </div>
+      <div class="card-body qr-body">
+        <ng-container *ngIf="status?.ready">
+          <div class="qr-ready">
+            <div class="qr-ready-mark material-symbols-rounded">verified</div>
+            <h3 style="font-size:16px; margin-bottom:4px;">Device linked</h3>
+            <p class="text-muted" style="margin:0 0 16px; font-size:13px;">
+              Messages will be sent from <b class="text-fg">{{ status?.info?.pushname || 'this device' }}</b>.
+            </p>
+            <button class="btn btn-danger" (click)="disconnect()" [disabled]="disconnecting">
+              <span class="material-symbols-rounded">link_off</span>
+              {{ disconnecting ? 'Disconnecting...' : 'Disconnect device' }}
+            </button>
+          </div>
+        </ng-container>
+        <ng-container *ngIf="!status?.ready && qrImage as src">
+          <div class="qr-img-wrap">
+            <img [src]="src" alt="WhatsApp QR" />
+          </div>
+          <ol class="qr-steps">
+            <li>Open WhatsApp on the sender phone</li>
+            <li>Go to Settings &rarr; Linked Devices</li>
+            <li>Tap Link a Device and scan the code</li>
+          </ol>
+        </ng-container>
+        <ng-container *ngIf="!status?.ready && !qrImage">
+          <div class="qr-waiting">
+            <div class="spinner"></div>
+            <h3 style="margin: 12px 0 4px; font-size: 15px;">Preparing QR...</h3>
+            <p class="text-muted" style="margin:0; font-size:13px;">The bridge is initialising WhatsApp Web (5-25 seconds).</p>
+            <p class="text-dim mono" *ngIf="status?.state" style="margin-top:6px; font-size:11px;">
+              state: {{ status?.state }}
+            </p>
+            <button class="btn btn-sm" style="margin-top:14px;" (click)="resetQr()" [disabled]="resetting">
+              <span class="material-symbols-rounded">restart_alt</span>
+              Force reset if stuck
+            </button>
+          </div>
+        </ng-container>
+      </div>
+    </section>
+    <ng-template #nonLocalTpl>
+      <section class="card">
+        <div class="card-header"><div class="card-title">Cloud provider</div></div>
+        <div class="card-body">
+          <p class="text-muted">{{ status?.message || 'This provider does not require QR linking.' }}</p>
+        </div>
+      </section>
+    </ng-template>
+    <aside class="side-col">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Bridge details</div></div>
+        <div class="card-body">
+          <div class="kv"><div class="kv-key">Provider</div><div class="kv-val mono">{{ status?.provider || '&mdash;' }}</div></div>
+          <div class="kv"><div class="kv-key">URL</div><div class="kv-val"><span class="code">{{ status?.bridgeUrl || '&mdash;' }}</span></div></div>
+          <div class="kv" *ngIf="status?.info?.wid"><div class="kv-key">WID</div><div class="kv-val mono">{{ status?.info?.wid }}</div></div>
+          <div class="kv" *ngIf="status?.info?.platform"><div class="kv-key">Platform</div><div class="kv-val">{{ status?.info?.platform }}</div></div>
+          <a *ngIf="status?.qrUrl" class="btn btn-sm" [href]="status?.qrUrl" target="_blank" rel="noopener" style="margin-top:12px;">
+            <span class="material-symbols-rounded">open_in_new</span> Open bridge page
+          </a>
+        </div>
+      </div>
+      <div class="card" *ngIf="status?.error">
+        <div class="card-header"><div class="card-title text-danger">Bridge unreachable</div></div>
+        <div class="card-body">
+          <p class="text-muted" style="margin:0 0 12px;">{{ status?.error }}</p>
+          <pre class="codeblock">cd wa-bridge
+npm install
+npm start</pre>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Safety rules</div></div>
+        <div class="card-body tips">
+          <div class="tip"><span class="tip-n">1</span><div><b>Ultra-safe pacing</b> &mdash; ~90s per message, &plusmn;40% jitter.</div></div>
+          <div class="tip"><span class="tip-n">2</span><div><b>Daily cap</b> &mdash; 150 messages / 24h. Batches auto-pause.</div></div>
+          <div class="tip"><span class="tip-n">3</span><div><b>Dedicated SIM only.</b> Never link a personal WhatsApp.</div></div>
+          <div class="tip"><span class="tip-n">4</span><div>Ask candidates to save your number in the message body.</div></div>
+          <div class="tip"><span class="tip-n">5</span><div><b>One device per number.</b> Do not run the bridge on multiple machines.</div></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

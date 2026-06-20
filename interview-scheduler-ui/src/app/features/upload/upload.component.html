@@ -1,0 +1,162 @@
+﻿<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>Upload candidates</h1>
+      <p class="page-sub">Drop an Excel file with candidate details. Every row is validated; invalid rows are reported, never silently dropped.</p>
+    </div>
+    <a class="btn" [href]="sampleUrl" target="_blank" rel="noopener" download>
+      <span class="material-symbols-rounded">download</span> Sample .xlsx
+    </a>
+  </header>
+  <div class="layout">
+    <div class="col-main">
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <div class="dropzone"
+               [class.active]="dragOver"
+               (dragover)="onDragOver($event)"
+               (dragleave)="onDragLeave($event)"
+               (drop)="onDrop($event)"
+               (click)="!selectedFile && triggerPick()">
+            <input #fileInput type="file" hidden accept=".xlsx,.xls" (change)="onFileChange($event)" />
+            <ng-container *ngIf="!selectedFile">
+              <div class="dz-icon">
+                <span class="material-symbols-rounded">upload_file</span>
+              </div>
+              <h3 style="font-size:15px; margin-bottom:4px;">Drop your .xlsx here</h3>
+              <p class="text-muted" style="margin: 0 0 14px; font-size:13px;">or click to browse</p>
+              <div class="dz-meta">
+                <span class="code">XLSX</span>
+                <span class="code">XLS</span>
+                <span class="text-dim" style="font-size:11.5px;">Max 10 MB</span>
+              </div>
+            </ng-container>
+            <ng-container *ngIf="selectedFile">
+              <div class="file-card">
+                <span class="file-glyph material-symbols-rounded">description</span>
+                <div class="file-info">
+                  <div class="file-name">{{ selectedFile.name }}</div>
+                  <div class="text-dim mono" style="font-size:12px;">{{ formatSize(selectedFile.size) }}</div>
+                </div>
+                <button class="btn btn-icon btn-ghost" (click)="clearFile(); $event.stopPropagation()" aria-label="Remove">
+                  <span class="material-symbols-rounded" style="font-size:18px;">close</span>
+                </button>
+              </div>
+              <div class="dz-actions">
+                <button class="btn btn-primary btn-lg" (click)="upload(); $event.stopPropagation()" [disabled]="uploading">
+                  <span class="material-symbols-rounded">{{ uploading ? 'progress_activity' : 'check' }}</span>
+                  {{ uploading ? 'Parsing...' : 'Parse and validate' }}
+                </button>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+      <div class="card" *ngIf="result">
+        <div class="card-header">
+          <div>
+            <div class="card-title">{{ result.fileName }}</div>
+            <div class="text-dim" style="font-size:12px; margin-top:2px;">Upload result</div>
+          </div>
+          <button class="btn btn-primary" (click)="goToBatch()">
+            <span class="material-symbols-rounded">arrow_forward</span> Open batch
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="result-stats">
+            <div>
+              <div class="kpi-label">Total rows</div>
+              <div class="kpi-value-mono">{{ result.totalRows }}</div>
+            </div>
+            <div>
+              <div class="kpi-label">Valid</div>
+              <div class="kpi-value-mono text-success">{{ result.validCandidates }}</div>
+            </div>
+            <div>
+              <div class="kpi-label">Invalid</div>
+              <div class="kpi-value-mono" [style.color]="result.invalidCandidates ? 'var(--color-danger)' : 'var(--color-fg-dim)'">{{ result.invalidCandidates }}</div>
+            </div>
+          </div>
+          <ng-container *ngIf="result.errors?.length">
+            <h3 style="margin: 22px 0 10px; font-size:13px;">Validation issues <span class="text-dim mono" style="font-weight:400;">&middot; {{ result.errors.length }}</span></h3>
+            <div class="err-list">
+              <div class="err-row" *ngFor="let e of result.errors">
+                <span class="mono text-dim" style="font-size:11.5px;">Row {{ e.rowNumber }}</span>
+                <div>
+                  <div style="font-size:13px;">{{ e.candidateName || '&mdash;' }}</div>
+                  <div class="text-dim mono" style="font-size:11.5px;">{{ e.phoneNumber || 'no phone' }}</div>
+                </div>
+                <app-status-chip variant="danger">{{ e.error }}</app-status-chip>
+              </div>
+            </div>
+          </ng-container>
+          <ng-container *ngIf="result.schema?.length">
+            <h3 style="margin: 22px 0 8px; font-size:13px;">Detected columns <span class="text-dim mono" style="font-weight:400;">&middot; {{ result.schema.length }}</span></h3>
+            <p class="text-muted" style="margin: 0 0 12px; font-size:12.5px;">
+              Reference these in any template body, e.g. <span class="code">{{ placeholderExample }}</span>.
+            </p>
+            <table class="data-table">
+              <thead><tr><th>Header</th><th>Placeholder</th><th>Sample value</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let s of result.schema">
+                  <td>
+                    <span>{{ s.header }}</span>
+                    <span class="pill pill-no-dot pill-info" *ngIf="s.phoneColumn" style="margin-left:6px;">system</span>
+                    <span class="pill pill-no-dot pill-accent" *ngIf="!s.known && !s.phoneColumn" style="margin-left:6px;">custom</span>
+                  </td>
+                  <td>
+                    <ng-container *ngIf="!s.phoneColumn; else sysCell">
+                      <span class="code" style="cursor:pointer;" (click)="copyPlaceholder(s.namedPlaceholder)" title="Click to copy">{{ s.namedPlaceholder }}</span>
+                    </ng-container>
+                    <ng-template #sysCell><span class="text-dim">&mdash;</span></ng-template>
+                  </td>
+                  <td class="mono text-dim" style="font-size:12px;">{{ s.sampleValue || '&mdash;' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+    <aside class="col-side">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Required columns</div></div>
+        <div class="card-body">
+          <p class="text-muted" style="margin: 0 0 14px; font-size:12.5px;">
+            Only <b class="text-fg">Phone Number</b> is mandatory. Other columns auto-become placeholders.
+          </p>
+          <table class="data-table">
+            <thead><tr><th>Header</th><th>Placeholder</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of expectedColumns">
+                <td style="font-size:12.5px;">{{ c.header }}</td>
+                <td><span class="code">{{ c.placeholder }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Quick tips</div></div>
+        <div class="card-body tips">
+          <div class="tip">
+            <span class="tip-n">1</span>
+            <div>Custom columns like &quot;Panel Name&quot; auto-become <span class="code">{{ customColumnExample }}</span>.</div>
+          </div>
+          <div class="tip">
+            <span class="tip-n">2</span>
+            <div>10-digit Indian numbers are auto-prefixed with <span class="code">+91</span>.</div>
+          </div>
+          <div class="tip">
+            <span class="tip-n">3</span>
+            <div>Invalid rows are reported, never dropped &mdash; review and re-upload if needed.</div>
+          </div>
+          <div class="tip">
+            <span class="tip-n">4</span>
+            <div>Default pacing is ~90s per message with jitter. 100 rows take ~2h 30m.</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

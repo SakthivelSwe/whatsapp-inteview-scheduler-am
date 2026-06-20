@@ -1,0 +1,134 @@
+spring:
+  application:
+    name: interview-scheduler
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # Default: H2 file-based DB (persists across restarts; no install needed)
+  datasource:
+    url: jdbc:h2:file:./data/interviewdb;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 8
+      minimum-idle: 2
+      idle-timeout: 30000
+      pool-name: ischeduler-pool
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false   # better perf — releases DB conn after controller method
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+        jdbc.batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  cache:
+    type: caffeine
+    cache-names: templates
+    caffeine:
+      spec: maximumSize=100,expireAfterWrite=10m
+
+server:
+  port: 8080
+  # Smaller payloads = lower latency, especially on JSON listings
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain,text/css,application/javascript,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    min-response-size: 1024
+  http2:
+    enabled: true
+
+# WhatsApp Provider Configuration
+# Supported providers: mock | local | meta | twilio
+#   mock  -> logs to console only (no real send)
+#   local -> FREE: sends via wa-bridge (whatsapp-web.js) using your company WhatsApp number
+#   meta  -> Meta WhatsApp Cloud API (paid for business-initiated msgs)
+#   twilio-> Twilio WhatsApp API (paid / sandbox)
+whatsapp:
+  provider: local   # FREE bridge mode; switch to 'mock' for dry-run
+  local:
+    base-url: ${WA_BRIDGE_URL:http://localhost:3000}
+  meta:
+    api-url: https://graph.facebook.com/v20.0
+    phone-number-id: ${META_PHONE_NUMBER_ID:YOUR_PHONE_NUMBER_ID}
+    access-token: ${META_ACCESS_TOKEN:YOUR_ACCESS_TOKEN}
+    template-name: ${META_TEMPLATE_NAME:interview_invite}
+    template-language: en_US
+  twilio:
+    account-sid: ${TWILIO_ACCOUNT_SID:YOUR_SID}
+    auth-token: ${TWILIO_AUTH_TOKEN:YOUR_TOKEN}
+    from-number: ${TWILIO_FROM:whatsapp:+14155238886}
+  rate-limit:
+    # ============================================================
+    # ULTRA-SAFE configuration for FREE 'local' (whatsapp-web.js)
+    # ============================================================
+    # delay-seconds = base gap between messages
+    # jitter        = random ±fraction applied to each gap
+    # max-concurrent= 1  (MUST be 1 for local provider)
+    #
+    #   delay  jitter  100 msgs takes      ban risk
+    #   -----  ------  -----------------   --------
+    #   1      0       ~2 min              VERY HIGH (~70%)
+    #   8      0       ~13 min             MEDIUM   (~25%)
+    #   45     0.3     ~75 min             LOW      (~5%)
+    #   90     0.4     ~2 h 30 min         VERY LOW (~1-2%)   <-- DEFAULT
+    #   180    0.4     ~5 h                LOWEST   (<1%)
+    #
+    # Each gap with delay=90, jitter=0.4 is randomly between 54s and 126s.
+    # Looks like a human typing/copying messages manually.
+    delay-seconds: 90
+    jitter: 0.4
+    messages-per-second: 0   # fallback if delay-seconds <= 0
+    max-concurrent: 1        # KEEP 1 for 'local' provider (single WA session)
+    # Daily safety cap: stop sending after this many messages in 24h to
+    # protect the linked device. 0 = no cap. Recommended: 150 for new
+    # linked numbers, 500 for warmed-up numbers.
+    daily-limit: 150
+
+# OpenAPI / Swagger
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.dummby: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.web: WARN
+
+# Actuator — expose only health + info for load balancers / monitoring.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+info:
+  app:
+    name: ${spring.application.name}
+    description: WhatsApp Bulk Interview Scheduler
