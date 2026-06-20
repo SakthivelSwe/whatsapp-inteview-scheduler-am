@@ -63,8 +63,7 @@ public class Candidate {
      * + positional keys ("column_1", "column_2", ...) covering EVERY column the user
      * had in their Excel, in original order.
      */
-    @Lob
-    @Column(name = "extra_fields_json", columnDefinition = "CLOB")
+    @Column(name = "extra_fields_json", columnDefinition = "TEXT")
     private String extraFieldsJson;
 
     @Enumerated(EnumType.STRING)

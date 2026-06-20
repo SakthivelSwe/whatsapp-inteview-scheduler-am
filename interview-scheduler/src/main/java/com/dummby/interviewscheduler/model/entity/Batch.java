@@ -19,8 +19,7 @@ public class Batch {
     private Integer totalCandidates;
 
     /** JSON-serialized list of detected ColumnSchema (so we can show placeholders later). */
-    @Lob
-    @Column(name = "schema_json", columnDefinition = "CLOB")
+    @Column(name = "schema_json", columnDefinition = "TEXT")
     private String schemaJson;
 
     @Enumerated(EnumType.STRING)
