@@ -4,7 +4,7 @@
   "description": "WhatsApp Web bridge for Interview Scheduler (uses whatsapp-web.js - free, unofficial)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node --max-old-space-size=300 server.js"
   },
   "dependencies": {
     "express": "^4.19.2",

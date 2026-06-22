@@ -30,13 +30,17 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm install --omit=dev
 
 COPY . .
 
 EXPOSE 3000
 
-# Tell Puppeteer it's running in Docker/Sandbox
+# ── Memory-safe defaults for Render free-tier (512 MB) ──────────────
+# Cap Node.js V8 heap at 300 MB — leaves ~200 MB for Chromium itself.
+ENV NODE_OPTIONS="--max-old-space-size=300"
+
+# Tell Puppeteer NOT to download a second Chromium; use the one npm installed.
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
 ENV PUPPETEER_EXECUTABLE_PATH=""
 

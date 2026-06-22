@@ -65,13 +65,53 @@ function buildClient() {
     puppeteer: {
       headless: true,
       args: [
+        // ── Sandboxing (required in Docker / Render) ──────────────────────────
         '--no-sandbox',
         '--disable-setuid-sandbox',
+
+        // ── Shared-memory: /dev/shm is tiny on Render free tier ──────────────
         '--disable-dev-shm-usage',
+
+        // ── GPU / rendering (saves ~100 MB) ──────────────────────────────────
+        '--disable-gpu',
         '--disable-accelerated-2d-canvas',
-        '--no-first-run',
+        '--disable-accelerated-video-decode',
+        '--disable-software-rasterizer',
+
+        // ── Single process: no zygote / renderer process fork ─────────────────
+        // (biggest memory win on constrained hosts)
+        '--single-process',
         '--no-zygote',
-        '--disable-gpu'
+
+        // ── Disable heavyweight features we don't need ────────────────────────
+        '--no-first-run',
+        '--disable-extensions',
+        '--disable-plugins',
+        '--disable-sync',
+        '--disable-translate',
+        '--disable-background-networking',
+        '--disable-default-apps',
+        '--disable-hang-monitor',
+        '--disable-prompt-on-repost',
+        '--disable-client-side-phishing-detection',
+        '--disable-component-update',
+        '--disable-domain-reliability',
+        '--disable-features=AudioServiceOutOfProcess,TranslateUI',
+        '--no-pings',
+        '--safebrowsing-disable-auto-update',
+
+        // ── V8 / JS heap limits (keep JS memory under ~180 MB) ────────────────
+        '--js-flags=--max-old-space-size=180',
+
+        // ── Disk cache (use as little disk/memory as possible) ────────────────
+        '--disk-cache-size=1',
+        '--media-cache-size=1',
+
+        // ── Misc low-memory helpers ───────────────────────────────────────────
+        '--memory-pressure-off',
+        '--disable-background-timer-throttling',
+        '--disable-renderer-backgrounding',
+        '--disable-ipc-flooding-protection'
       ]
     }
   });
