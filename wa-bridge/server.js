@@ -79,9 +79,8 @@ function buildClient() {
         '--disable-software-rasterizer',
 
         // ── Single process: no zygote / renderer process fork ─────────────────
-        // (biggest memory win on constrained hosts)
-        '--single-process',
-        '--no-zygote',
+        // (biggest memory win on constrained hosts, but crashes on Windows)
+        ...(process.platform === 'linux' ? ['--single-process', '--no-zygote'] : []),
 
         // ── Disable heavyweight features we don't need ────────────────────────
         '--no-first-run',
