@@ -32,6 +32,8 @@ const fs = require('fs');
 const path = require('path');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
+const { execSync } = require('child_process');
+
 const PORT = process.env.PORT || 3000;
 const AUTH_PATH = path.join(__dirname, '.wwebjs_auth');
 
@@ -46,10 +48,60 @@ let initStartedAt = Date.now();
 let client = null;
 
 /**
- * Build a fresh whatsapp-web.js client. We pin the WhatsApp Web version via a
- * remote cache — this is the single most common fix for the "bridge starts but
- * never shows a QR" problem, which happens when WhatsApp ships a new web build
- * that the bundled selectors don't recognise.
+ * Detect a usable Chrome / Edge executable on the system.
+ * Returns an absolute path or null if nothing found.
+ * Puppeteer's bundled Chrome is tried first (via its own resolution);
+ * this function is the FALLBACK for fresh clones where the download failed.
+ */
+function findChromePath() {
+  // Well-known install locations per OS
+  const candidates = process.platform === 'win32'
+    ? [
+        process.env['PROGRAMFILES(X86)'] + '\\Google\\Chrome\\Application\\chrome.exe',
+        process.env['PROGRAMFILES'] + '\\Google\\Chrome\\Application\\chrome.exe',
+        process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+        process.env['PROGRAMFILES(X86)'] + '\\Microsoft\\Edge\\Application\\msedge.exe',
+        process.env['PROGRAMFILES'] + '\\Microsoft\\Edge\\Application\\msedge.exe',
+      ]
+    : process.platform === 'darwin'
+    ? [
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+      ]
+    : [ // Linux
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/usr/bin/microsoft-edge-stable',
+      ];
+
+  for (const p of candidates) {
+    try { if (p && fs.existsSync(p)) return p; } catch (_) {}
+  }
+
+  // Last resort: ask `where` / `which`
+  try {
+    const cmd = process.platform === 'win32' ? 'where chrome' : 'which google-chrome-stable || which chromium';
+    return execSync(cmd, { encoding: 'utf8', timeout: 3000 }).trim().split('\n')[0];
+  } catch (_) {}
+
+  return null;
+}
+
+// Resolve once at startup
+const systemChrome = findChromePath();
+if (systemChrome) {
+  console.log('[wa-bridge] System Chrome/Edge found at:', systemChrome);
+} else {
+  console.log('[wa-bridge] No system Chrome/Edge detected — relying on Puppeteer bundled browser.');
+}
+
+/**
+ * Build a fresh whatsapp-web.js client.
+ * Uses Puppeteer's bundled Chromium when available; falls back to the
+ * system-installed Chrome or Edge so the bridge works on fresh clones
+ * even before `npx puppeteer browsers install chrome` succeeds.
  */
 function buildClient() {
   return new Client({
@@ -61,6 +113,8 @@ function buildClient() {
     // The old remote GitHub fetch was the #1 cause of slow/stuck initialization.
     puppeteer: {
       headless: true,
+      // Use Puppeteer's bundled Chrome if available; fall back to system Chrome/Edge
+      ...(systemChrome ? { executablePath: systemChrome } : {}),
       args: [
         // ── Sandboxing (required in Docker / Render) ──────────────────────────
         '--no-sandbox',
