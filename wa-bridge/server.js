@@ -57,11 +57,8 @@ function buildClient() {
     takeoverOnConflict: true,        // grab the session if another tab/instance holds it
     takeoverTimeoutMs: 10000,
     qrMaxRetries: 0,                 // keep regenerating QR forever until scanned
-    webVersionCache: {
-      type: 'remote',
-      remotePath:
-        'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1023204200.html'
-    },
+    // NOTE: No webVersionCache — let whatsapp-web.js use its bundled version.
+    // The old remote GitHub fetch was the #1 cause of slow/stuck initialization.
     puppeteer: {
       headless: true,
       args: [
@@ -167,16 +164,28 @@ function wireEvents(c) {
   });
 }
 
+let initRetries = 0;
+const MAX_INIT_RETRIES = 3;
+
 function startClient() {
   initStartedAt = Date.now();
   lastState = 'INITIALIZING';
+  console.log('[wa-bridge] Initializing client (attempt ' + (initRetries + 1) + '/' + MAX_INIT_RETRIES + ')...');
   client = buildClient();
   wireEvents(client);
   client.initialize().catch((err) => {
     lastState = 'INIT_FAILED';
     console.error('[wa-bridge] initialize() failed:', err && err.message);
-    // Retry once after a short delay
-    safeReinit(3000);
+    initRetries++;
+    if (initRetries < MAX_INIT_RETRIES) {
+      console.log('[wa-bridge] Retrying in 3s... (' + initRetries + '/' + MAX_INIT_RETRIES + ')');
+      safeReinit(3000);
+    } else {
+      console.error('[wa-bridge] ❌ Max retries reached. Wiping session and trying one last time.');
+      initRetries = 0;
+      wipeAuth();
+      safeReinit(2000);
+    }
   });
 }
 
@@ -207,19 +216,20 @@ function wipeAuth() {
 }
 
 /**
- * Watchdog: if after 75 seconds we are neither READY nor have a QR, the client
+ * Watchdog: if after 40 seconds we are neither READY nor have a QR, the client
  * is stuck (corrupt session / web-version mismatch). Wipe the session and
  * re-initialise so the user always eventually gets a scannable QR.
  */
 setInterval(() => {
   const stalledMs = Date.now() - initStartedAt;
-  if (!isReady && !lastQr && stalledMs > 75000) {
+  if (!isReady && !lastQr && stalledMs > 40000) {
     console.warn('[wa-bridge] ⚠ Stuck with no QR for ' + Math.round(stalledMs / 1000) +
       's — wiping session and restarting.');
+    initRetries = 0;
     wipeAuth();
     safeReinit(500);
   }
-}, 15000);
+}, 10000);
 
 startClient();
 
