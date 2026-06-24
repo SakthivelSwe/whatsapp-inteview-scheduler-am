@@ -89,16 +89,17 @@ whatsapp:
     #   90     0.4     ~2 h 30 min         VERY LOW (~1-2%)   <-- DEFAULT
     #   180    0.4     ~5 h                LOWEST   (<1%)
     #
-    # Each gap with delay=90, jitter=0.4 is randomly between 54s and 126s.
-    # Looks like a human typing/copying messages manually.
-    delay-seconds: 90
-    jitter: 0.4
+    # Defaults below: 30s gap with ±30% jitter (21–39s per message).
+    # 100 messages takes ~50 min — realistic for HR while still anti-ban.
+    # Raise delay-seconds back to 60–90 for production / unwarmed numbers.
+    delay-seconds: 30
+    jitter: 0.3
     messages-per-second: 0   # fallback if delay-seconds <= 0
     max-concurrent: 1        # KEEP 1 for 'local' provider (single WA session)
     # Daily safety cap: stop sending after this many messages in 24h to
     # protect the linked device. 0 = no cap. Recommended: 150 for new
-    # linked numbers, 500 for warmed-up numbers.
-    daily-limit: 150
+    # linked numbers, 500 for warmed-up numbers. Set to 0 for testing.
+    daily-limit: 0
 
 # OpenAPI / Swagger
 springdoc:

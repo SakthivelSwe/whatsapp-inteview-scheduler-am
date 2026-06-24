@@ -103,6 +103,22 @@ public class BulkSendDispatcher {
                     } catch (Exception ex) {
                         result = WhatsAppSendResult.fail(ex.getMessage());
                     }
+
+                    // If the bridge is disconnected mid-batch (WhatsApp unlinked the
+                    // device, Puppeteer crashed, or bridge process is down), don't
+                    // burn through the remaining candidates marking each one FAILED.
+                    // Auto-pause so HR can re-scan the QR and resume cleanly.
+                    if (!result.isSuccess() && isBridgeUnavailable(result.getErrorMessage())) {
+                        log.warn("wa-bridge unavailable mid-batch ({}). Auto-pausing batch {} so it can be resumed after reconnect.",
+                                result.getErrorMessage(), batch.getId());
+                        c.setStatus(Candidate.SendStatus.PENDING);
+                        c.setLastError("Paused: " + result.getErrorMessage());
+                        candidateRepository.save(c);
+                        batch.setStatus(Batch.BatchStatus.PAUSED);
+                        batchRepository.save(batch);
+                        return;
+                    }
+
                     persistResult(batch.getId(), c, body, result);
 
                     if (baseDelayMs > 0) {
@@ -151,6 +167,24 @@ public class BulkSendDispatcher {
             candidate.setLastError(result.getErrorMessage());
             candidateRepository.save(candidate);
         });
+    }
+
+    /**
+     * Identifies transport-level failures (bridge down, WhatsApp unlinked,
+     * Puppeteer crashed) where retrying every remaining candidate would just
+     * produce 50+ identical FAILED rows. For these we auto-pause the batch.
+     * Per-number failures (invalid number, not on WhatsApp) are NOT included
+     * here — those should remain FAILED so HR can fix the row.
+     */
+    private boolean isBridgeUnavailable(String err) {
+        if (err == null) return false;
+        String e = err.toLowerCase();
+        return e.contains("bridge is not running")
+                || e.contains("not linked")
+                || e.contains("not connected")
+                || e.contains("empty response from wa-bridge")
+                || e.contains("connection refused")
+                || e.contains("connect timed out");
     }
 
     private long resolveDelayMs() {
